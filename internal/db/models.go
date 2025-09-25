@@ -56,6 +56,15 @@ func (ns NullCurrency) Value() (driver.Value, error) {
 	return string(ns.Currency), nil
 }
 
+type AppUsersSafe struct {
+	ID                pgtype.UUID
+	Username          string
+	Email             string
+	CreatedAt         pgtype.Timestamptz
+	PasswordChangedAt pgtype.Timestamptz
+	LastLoginAt       pgtype.Timestamptz
+}
+
 type AppVMembership struct {
 	UserID pgtype.UUID
 	ListID pgtype.UUID
@@ -107,10 +116,14 @@ type PaymentsCategory struct {
 }
 
 type User struct {
-	ID        pgtype.UUID
-	Username  string
-	Email     string
-	CreatedAt pgtype.Timestamptz
+	ID                pgtype.UUID
+	Username          string
+	Email             string
+	CreatedAt         pgtype.Timestamptz
+	PasswordHash      pgtype.Text
+	PasswordAlgo      string
+	PasswordChangedAt pgtype.Timestamptz
+	LastLoginAt       pgtype.Timestamptz
 }
 
 type UsersList struct {

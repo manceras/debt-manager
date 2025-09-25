@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 CREATE TYPE currency AS ENUM ('USD', 'EUR', 'GBP', 'JPY', 'CNY');
 
 CREATE TABLE public.users (
@@ -69,3 +71,16 @@ CREATE INDEX ON public.deposits (list_id);
 CREATE INDEX ON public.deposits (payer_user_id);
 CREATE INDEX ON public.deposits (payee_user_id);
 CREATE INDEX ON public.categories (name);
+-- +goose StatementEnd
+
+-- +goose Down
+-- +goose StatementBegin
+DROP TABLE IF EXISTS public.payments_categories;
+DROP TABLE IF EXISTS public.divisions;
+DROP TABLE IF EXISTS public.deposits;
+DROP TABLE IF EXISTS public.payments;
+DROP TABLE IF EXISTS public.categories;
+DROP TABLE IF EXISTS public.users_lists;
+DROP TABLE IF EXISTS public.lists;
+DROP TABLE IF EXISTS public.users;
+-- +goose StatementEnd
