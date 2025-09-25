@@ -19,7 +19,7 @@ func Migrate(dsn string) {
 		log.Fatalf("failed to set dialect: %v", err)
 	}
 
-	if err := goose.Up(db, "internal/db/migrations"); err != nil {
+	if err := goose.Up(db, "migrations"); err != nil {
 		log.Fatalf("failed to apply migrations: %v", err)
 	}
 

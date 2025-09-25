@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"debt-manager/internal/http/handlers"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -21,12 +22,12 @@ func UserMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		header := r.Header.Get("X-User-ID")
 		if header == "" {
-			http.Error(w, "missing X-User-ID header", http.StatusBadRequest)
+			handlers.WriteError(w, http.StatusUnauthorized, "missing X-User-ID header")
 			return
 		}
 		userID, err := uuid.Parse(header)
 		if err != nil {
-			http.Error(w, "invalid X-User-ID header", http.StatusBadRequest)
+			handlers.WriteError(w, http.StatusUnauthorized, "invalid X-User-ID header")
 			return
 		}
 		ctx := context.WithValue(r.Context(), ctxKeyUserID{}, userID)

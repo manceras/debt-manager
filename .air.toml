@@ -1,0 +1,26 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+cmd = "go build -o ./tmp/api ./cmd/api"
+bin = "tmp/api"
+full_bin = "./tmp/api"
+exclude_dir = ["tmp", ".git", ".bin"]
+include_ext = ["go"]          # only rebuild on .go changes
+exclude_regex = ["_test.go"]
+
+# Optional: run codegen before build when SQL changes
+[log]
+time = true
+
+[[watch]]
+dir = "internal/db/queries"
+include_ext = ["sql"]
+cmd = "sqlc generate"
+
+# Also regenerate when sqlc.yaml changes
+[[watch]]
+dir = "."
+include_ext = ["yaml", "yml"]
+files = ["sqlc.yaml"]
+cmd = "sqlc generate"
