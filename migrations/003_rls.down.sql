@@ -1,0 +1,10 @@
+DROP POLICY IF EXISTS deposits_members_only      ON public.deposits;
+DROP POLICY IF EXISTS payments_categories_members_only ON public.payments_categories;
+DROP POLICY IF EXISTS categories_read_all        ON public.categories;
+DROP POLICY IF EXISTS divisions_members_only     ON public.divisions;
+DROP POLICY IF EXISTS payments_members_only      ON public.payments;
+DROP POLICY IF EXISTS users_lists_delete         ON public.users_lists;
+DROP POLICY IF EXISTS users_lists_write          ON public.users_lists;
+DROP POLICY IF EXISTS users_lists_read           ON public.users_lists;
+DROP POLICY IF EXISTS users_is_self              ON public.users;
+DROP POLICY IF EXISTS lists_members_only         ON public.lists;
