@@ -34,6 +34,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.Handle("POST /lists", http_.UserMiddleware(http.HandlerFunc(server.CreateList)))
+	mux.Handle("POST /users", http.HandlerFunc(server.CreateUser))
 
 	const addr = ":8080"
 	log.Printf("Starting server on %s", addr)

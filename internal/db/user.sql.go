@@ -12,39 +12,39 @@ import (
 )
 
 const createUser = `-- name: CreateUser :one
-INSERT INTO users (email, password_hash, password_algo, username)
-VALUES ($1, $2, $3, $4)
-RETURNING id, email, username, created_at, password_changed_at, last_login_at
+SELECT register_user FROM app.register_user($1, $2, $3, $4)
 `
 
 type CreateUserParams struct {
 	Email        string
-	PasswordHash pgtype.Text
-	PasswordAlgo string
 	Username     string
+	PasswordHash string
+	PasswordAlgo string
 }
 
-type CreateUserRow struct {
-	ID                pgtype.UUID
-	Email             string
-	Username          string
-	CreatedAt         pgtype.Timestamptz
-	PasswordChangedAt pgtype.Timestamptz
-	LastLoginAt       pgtype.Timestamptz
-}
-
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error) {
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (pgtype.UUID, error) {
 	row := q.db.QueryRow(ctx, createUser,
 		arg.Email,
+		arg.Username,
 		arg.PasswordHash,
 		arg.PasswordAlgo,
-		arg.Username,
 	)
-	var i CreateUserRow
+	var register_user pgtype.UUID
+	err := row.Scan(&register_user)
+	return register_user, err
+}
+
+const getUserByID = `-- name: GetUserByID :one
+SELECT id, username, email, created_at, password_changed_at, last_login_at FROM app.users_safe WHERE id = $1
+`
+
+func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (AppUsersSafe, error) {
+	row := q.db.QueryRow(ctx, getUserByID, id)
+	var i AppUsersSafe
 	err := row.Scan(
 		&i.ID,
-		&i.Email,
 		&i.Username,
+		&i.Email,
 		&i.CreatedAt,
 		&i.PasswordChangedAt,
 		&i.LastLoginAt,

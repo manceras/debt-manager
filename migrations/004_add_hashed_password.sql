@@ -1,3 +1,5 @@
+-- +goose Up
+-- +goose StatementBegin
 -- Ensure schema exists
 CREATE SCHEMA IF NOT EXISTS app;
 
@@ -136,3 +138,4 @@ $$;
 
 REVOKE ALL ON FUNCTION app.update_last_login(uuid) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION app.update_last_login(uuid) TO app_auth;
+-- +goose StatementEnd
