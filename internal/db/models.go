@@ -63,6 +63,17 @@ type AppLoginSecret struct {
 	Email        string
 }
 
+type AppRefreshToken struct {
+	ID           pgtype.UUID
+	SessionID    pgtype.UUID
+	TokenHash    []byte
+	ParentID     pgtype.UUID
+	ReplacedByID pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	ExpiresAt    pgtype.Timestamptz
+	RevokedAt    pgtype.Timestamptz
+}
+
 type AppSession struct {
 	ID        pgtype.UUID
 	UserID    pgtype.UUID

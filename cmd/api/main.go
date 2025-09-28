@@ -36,7 +36,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.Handle("POST /lists", server.Auth(http.HandlerFunc(server.CreateList)))
 
-	mux.Handle("POST /auth/signup", http.HandlerFunc(server.CreateUser))
+	mux.Handle("POST /auth/signup", http.HandlerFunc(server.SignUp))
 	mux.Handle("POST /auth/login", http.HandlerFunc(server.Login))
 
 

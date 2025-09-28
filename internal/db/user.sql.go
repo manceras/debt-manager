@@ -94,19 +94,3 @@ func (q *Queries) UpdateUserLastLogin(ctx context.Context, UserID pgtype.UUID) e
 	_, err := q.db.Exec(ctx, updateUserLastLogin, UserID)
 	return err
 }
-
-const whoAmI = `-- name: WhoAmI :one
-SELECT current_user, session_user
-`
-
-type WhoAmIRow struct {
-	Column1 interface{}
-	Column2 interface{}
-}
-
-func (q *Queries) WhoAmI(ctx context.Context) (WhoAmIRow, error) {
-	row := q.db.QueryRow(ctx, whoAmI)
-	var i WhoAmIRow
-	err := row.Scan(&i.Column1, &i.Column2)
-	return i, err
-}

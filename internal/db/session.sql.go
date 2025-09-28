@@ -11,6 +11,43 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createRefreshToken = `-- name: CreateRefreshToken :one
+INSERT INTO app.refresh_tokens (session_id, token_hash, expires_at, parent_id)
+VALUES ($1, $2, $3, $4)
+RETURNING id, session_id, created_at, expires_at
+`
+
+type CreateRefreshTokenParams struct {
+	SessionID pgtype.UUID
+	TokenHash []byte
+	ExpiresAt pgtype.Timestamptz
+	ParentID  pgtype.UUID
+}
+
+type CreateRefreshTokenRow struct {
+	ID        pgtype.UUID
+	SessionID pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (CreateRefreshTokenRow, error) {
+	row := q.db.QueryRow(ctx, createRefreshToken,
+		arg.SessionID,
+		arg.TokenHash,
+		arg.ExpiresAt,
+		arg.ParentID,
+	)
+	var i CreateRefreshTokenRow
+	err := row.Scan(
+		&i.ID,
+		&i.SessionID,
+		&i.CreatedAt,
+		&i.ExpiresAt,
+	)
+	return i, err
+}
+
 const createSession = `-- name: CreateSession :one
 INSERT INTO app.sessions (user_id, expires_at, user_agent, ip) VALUES ($1, $2, $3, $4) RETURNING id, user_id, created_at, expires_at, revoked_at, user_agent, ip
 `

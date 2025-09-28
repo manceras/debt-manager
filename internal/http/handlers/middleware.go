@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"debt-manager/internal/contextkeys"
+	"debt-manager/internal/db"
 	"errors"
 	"log"
 	"net/http"
@@ -56,19 +57,22 @@ func (s *Server) Auth(next http.Handler) http.Handler {
 
 		claims := token.Claims.(*Claims)
 
-		session, err := s.Tx.Q().GetSessionByID(
-			r.Context(),
-			pgtype.UUID{Bytes: uuid.MustParse(claims.SessionID), Valid: true},
-		)
+		s.Tx.WithTx(r.Context(), func(q *db.Queries) error {
+			session, err := q.GetSessionByID(
+				r.Context(),
+				pgtype.UUID{Bytes: uuid.MustParse(claims.SessionID), Valid: true},
+			)
 
-		if err != nil || session.RevokedAt.Valid || time.Now().After(session.ExpiresAt.Time) {
-			log.Println("Error getting session or invalid session:", err)
-			writeError(w, http.StatusUnauthorized, "unauthorized")
-			return
-		}
+			if err != nil || session.RevokedAt.Valid || time.Now().After(session.ExpiresAt.Time) {
+				log.Println("Error getting session or invalid session:", err)
+				writeError(w, http.StatusUnauthorized, "unauthorized")
+				return err
+			}
 
-		ctx := context.WithValue(r.Context(), contextkeys.UserID{}, claims.UserID)
-		ctx = context.WithValue(ctx, contextkeys.SessionID{}, claims.SessionID)
-		next.ServeHTTP(w, r.WithContext(ctx))
+			ctx := context.WithValue(r.Context(), contextkeys.UserID{}, claims.UserID)
+			ctx = context.WithValue(ctx, contextkeys.SessionID{}, claims.SessionID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+			return nil
+		})
 	})
 }
