@@ -11,13 +11,57 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const authRefreshLookup = `-- name: AuthRefreshLookup :one
+SELECT
+  rt.id           AS rt_id,
+  rt.session_id   AS session_id,
+  rt.expires_at   AS rt_expires_at,
+  rt.revoked_at   AS rt_revoked_at,
+  rt.replaced_by_id AS rt_replaced_by_id,
+  s.user_id       AS user_id,
+  s.revoked_at    AS session_revoked_at,
+  s.expires_at AS max_expires_at
+FROM app.refresh_tokens rt
+JOIN app.sessions s ON s.id = rt.session_id
+WHERE rt.token_hash = $1
+LIMIT 1
+`
+
+type AuthRefreshLookupRow struct {
+	RtID             pgtype.UUID
+	SessionID        pgtype.UUID
+	RtExpiresAt      pgtype.Timestamptz
+	RtRevokedAt      pgtype.Timestamptz
+	RtReplacedByID   pgtype.UUID
+	UserID           pgtype.UUID
+	SessionRevokedAt pgtype.Timestamptz
+	MaxExpiresAt     pgtype.Timestamptz
+}
+
+func (q *Queries) AuthRefreshLookup(ctx context.Context, tokenHash []byte) (AuthRefreshLookupRow, error) {
+	row := q.db.QueryRow(ctx, authRefreshLookup, tokenHash)
+	var i AuthRefreshLookupRow
+	err := row.Scan(
+		&i.RtID,
+		&i.SessionID,
+		&i.RtExpiresAt,
+		&i.RtRevokedAt,
+		&i.RtReplacedByID,
+		&i.UserID,
+		&i.SessionRevokedAt,
+		&i.MaxExpiresAt,
+	)
+	return i, err
+}
+
 const createRefreshToken = `-- name: CreateRefreshToken :one
-INSERT INTO app.refresh_tokens (session_id, token_hash, expires_at, parent_id)
-VALUES ($1, $2, $3, $4)
+INSERT INTO app.refresh_tokens (id, session_id, token_hash, expires_at, parent_id)
+VALUES ($1, $2, $3, $4, $5)
 RETURNING id, session_id, created_at, expires_at
 `
 
 type CreateRefreshTokenParams struct {
+	ID        pgtype.UUID
 	SessionID pgtype.UUID
 	TokenHash []byte
 	ExpiresAt pgtype.Timestamptz
@@ -33,6 +77,7 @@ type CreateRefreshTokenRow struct {
 
 func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (CreateRefreshTokenRow, error) {
 	row := q.db.QueryRow(ctx, createRefreshToken,
+		arg.ID,
 		arg.SessionID,
 		arg.TokenHash,
 		arg.ExpiresAt,
@@ -96,4 +141,46 @@ func (q *Queries) GetSessionByID(ctx context.Context, id pgtype.UUID) (AppSessio
 		&i.Ip,
 	)
 	return i, err
+}
+
+const markOldTokenReplaced = `-- name: MarkOldTokenReplaced :execrows
+UPDATE app.refresh_tokens
+SET replaced_by_id = $2
+WHERE id = $1 AND replaced_by_id IS NULL
+`
+
+type MarkOldTokenReplacedParams struct {
+	ID           pgtype.UUID
+	ReplacedByID pgtype.UUID
+}
+
+func (q *Queries) MarkOldTokenReplaced(ctx context.Context, arg MarkOldTokenReplacedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, markOldTokenReplaced, arg.ID, arg.ReplacedByID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeAllTokensInSession = `-- name: RevokeAllTokensInSession :exec
+UPDATE app.refresh_tokens
+SET revoked_at = now()
+WHERE session_id = $1 AND revoked_at IS NULL
+`
+
+// (optional, keep data tidy)
+func (q *Queries) RevokeAllTokensInSession(ctx context.Context, sessionID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, revokeAllTokensInSession, sessionID)
+	return err
+}
+
+const revokeWholeSession = `-- name: RevokeWholeSession :exec
+UPDATE app.sessions
+SET revoked_at = now()
+WHERE id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeWholeSession(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, revokeWholeSession, id)
+	return err
 }

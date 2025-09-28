@@ -38,6 +38,7 @@ func main() {
 
 	mux.Handle("POST /auth/signup", http.HandlerFunc(server.SignUp))
 	mux.Handle("POST /auth/login", http.HandlerFunc(server.Login))
+	mux.Handle("POST /auth/refresh", http.HandlerFunc(server.Refresh))
 
 
 	const addr = ":8080"

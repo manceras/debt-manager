@@ -73,15 +73,22 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	return subtle.ConstantTimeCompare(hash, computedHash) == 1, nil
 }
 
-func setCookie(w http.ResponseWriter, name, value string, ttl time.Duration) {
+func setCookie(w http.ResponseWriter, name, value string, ttl time.Duration, path ...string) {
+	p := "/"
+	if len(path) > 0 {
+		p = path[0]
+	}
   http.SetCookie(w, &http.Cookie{
     Name:     name,
     Value:    value,
-    Path:     "/",
     HttpOnly: true,
     Secure:   true,
     SameSite: http.SameSiteLaxMode,
     Expires:  time.Now().Add(ttl),
+		Path: 		p,
   })
 }
 
+func clearCookie(w http.ResponseWriter, name string, path ...string) {
+	setCookie(w, name, "", -time.Hour, path...)
+}

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"debt-manager/internal/db"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -21,6 +23,11 @@ type CreateUserRequest struct {
 	Email    string
 	Password string
 }
+
+const(
+		expiration_time = 45 * 24 * time.Hour // 45 days
+		atTTL = 15 * time.Minute // 15 minutes
+)
 
 func isValidEmail(email string) bool {
 	_, err := mail.ParseAddress(email)
@@ -35,6 +42,16 @@ func containsRestrictedChars(s string) bool {
 		}
 	}
 	return false
+}
+
+func (s *Server) makeAccessToken(claims *Claims) (string, error) {
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+		signed, err := token.SignedString(s.HS256PrivateKey)
+		if err != nil {
+			return "", err
+		}
+		return signed, nil
 }
 
 func createRefreshToken() (raw string, hash []byte, err error) {
@@ -60,24 +77,6 @@ func (s *Server) createSession(user db.AppUsersSafe, w http.ResponseWriter, r *h
 			log.Println("failed to create session:", err)
 			return err
 		}
-		accessTTL := 15 * time.Minute
-		token := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
-			SessionID: session.ID.String(),
-			UserID:    user.ID.String(),
-			RegisteredClaims: jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(accessTTL)),
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				Issuer:    "debt-manager",
-				Subject:   fmt.Sprint(user.ID),
-			},
-		})
-
-		signed, err := token.SignedString(s.HS256PrivateKey)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to sign token")
-			log.Println("failed to sign token:", err)
-			return err
-		}
 
 		rtRaw, rtHash, err := createRefreshToken()
 		if err != nil {
@@ -86,8 +85,9 @@ func (s *Server) createSession(user db.AppUsersSafe, w http.ResponseWriter, r *h
 			return err
 		}
 
-		expiresAt := time.Now().Add(45 * 24 * time.Hour) // 45 days
+		expiresAt := time.Now().Add(expiration_time)
 		_, err = q.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
+			ID: 			pgtype.UUID{Bytes: uuid.New(), Valid: true},
 			SessionID: session.ID,
 			TokenHash: rtHash,
 			ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
@@ -98,10 +98,29 @@ func (s *Server) createSession(user db.AppUsersSafe, w http.ResponseWriter, r *h
 			return err
 		}
 
-		setCookie(w, "access_token", signed, accessTTL)
-		setCookie(w, "refresh_token", rtRaw, time.Until(expiresAt))
+		signed, err := s.makeAccessToken(&Claims{
+			SessionID: session.ID.String(),
+			UserID:    user.ID.String(),
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(atTTL)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				Issuer:    "debt-manager",
+				Subject:   fmt.Sprint(user.ID),
+			},
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to create access token")
+			log.Println("failed to create access token:", err)
+		}
 
-		w.WriteHeader(http.StatusNoContent)
+		setCookie(w, "refresh_token", rtRaw, time.Until(expiresAt), "/auth/refresh")
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"access_token": signed,
+			"token_type":   "Bearer",
+			"expires_in":   int(atTTL.Seconds()),
+		})
+
 		return nil
 	})
 }
@@ -238,6 +257,132 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		s.createSession(user, w, r)
+		return nil
+	})
+}
+
+func (s *Server) Refresh(w http.ResponseWriter, r *http.Request) {
+	c, err := r.Cookie("refresh_token")
+	if err != nil {
+		writeError(w, http.StatusUnauthorized, "missing refresh token")
+		return
+	}
+
+	hash := sha256.Sum256([]byte(c.Value))
+
+	ctx := r.Context()
+	err = s.Tx.WithTx(ctx, func(q *db.Queries) error {
+		row, err := q.AuthRefreshLookup(ctx, hash[:])
+		if err != nil {
+			writeError(w, http.StatusUnauthorized, "invalid refresh token")
+			log.Println("failed to lookup refresh token:", err)
+			return err
+		}
+
+		if row.SessionRevokedAt.Valid {
+			writeError(w, http.StatusUnauthorized, "session revoked")
+			return nil
+		}
+
+		if row.RtRevokedAt.Valid || row.RtExpiresAt.Time.Before(time.Now()) {
+			writeError(w, http.StatusUnauthorized, "refresh token revoked")
+			return nil
+		}
+
+		if row.RtReplacedByID.Valid {
+			q.RevokeWholeSession(ctx, row.SessionID)
+			clearCookie(w, "access_token")
+			writeError(w, http.StatusUnauthorized, "refresh token reused")
+			return errors.New("refresh token reused")
+		}
+
+
+		return nil
+	})
+
+	if err != nil {
+		return
+	}
+
+	err = s.Tx.WithTx(ctx, func(q *db.Queries) error {
+		row, err := q.AuthRefreshLookup(ctx, hash[:])
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to get session details")
+			log.Println("failed to get session details:", err)
+			return err
+		}
+		expire_at := time.Now().Add(expiration_time)
+		if row.MaxExpiresAt.Valid && row.MaxExpiresAt.Time.Before(expire_at) {
+			expire_at = row.MaxExpiresAt.Time
+		}
+
+		if expire_at.Before(time.Now()) {
+			q.RevokeWholeSession(ctx, row.SessionID)
+			clearCookie(w, "access_token")
+			clearCookie(w, "refresh_token")
+			writeError(w, http.StatusUnauthorized, "session expired")
+			return nil;
+		}
+
+		new_rt_raw, new_rt_hash, err := createRefreshToken()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to create refresh token")
+			log.Println("failed to create refresh token:", err)
+			return err
+		}
+
+		new_rt_id := uuid.New()
+		log.Println("Old token ID:", row.RtID.Bytes, "   New token ID:", new_rt_id)
+		affected, err := q.MarkOldTokenReplaced(ctx, db.MarkOldTokenReplacedParams{
+			ID: row.RtID,
+			ReplacedByID: pgtype.UUID{Bytes: new_rt_id, Valid: true},
+		})
+		if err != nil || affected == 0 {
+			writeError(w, http.StatusInternalServerError, "failed to mark old refresh token as replaced")
+			log.Println("failed to mark old refresh token as replaced:", err)
+			return err
+		}
+
+		_, err = q.CreateRefreshToken(ctx, db.CreateRefreshTokenParams{
+			ID: pgtype.UUID{Bytes: new_rt_id, Valid: true},
+			SessionID: row.SessionID,
+			TokenHash: new_rt_hash,
+			ParentID: row.RtID,
+			ExpiresAt: pgtype.Timestamptz{
+				Time:  expire_at,
+				Valid: true,
+			},
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to store refresh token")
+			log.Println("failed to store refresh token:", err)
+			return err
+		}
+
+		at, err := s.makeAccessToken(&Claims{
+			SessionID: row.SessionID.String(),
+			UserID:    row.UserID.String(),
+			RegisteredClaims: jwt.RegisteredClaims{
+				ExpiresAt: jwt.NewNumericDate(time.Now().Add(15 * time.Minute)),
+				IssuedAt:  jwt.NewNumericDate(time.Now()),
+				Issuer:    "debt-manager",
+				Subject:   fmt.Sprint(row.UserID),
+			},
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to create access token")
+			log.Println("failed to create access token:", err)
+			return nil
+		}
+
+		setCookie(w, "refresh_token", new_rt_raw, time.Until(expire_at), "/auth/refresh")
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"access_token": at,
+			"token_type":   "Bearer",
+			"expires_in":   int(atTTL.Seconds()),
+		})
+
 		return nil
 	})
 }
