@@ -37,6 +37,19 @@ func (r *TxRunner) WithCtxUserTx(
 	return tx.Commit(ctx)
 }
 
-func (r *TxRunner) Q() *Queries {
-	return New(r.pool)
+func (r *TxRunner) WithTx(
+	ctx context.Context,
+	fn func(q *Queries) error,
+) error {
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := fn(New(tx)); err != nil {
+		return err
+	}
+
+	return tx.Commit(ctx)
 }
