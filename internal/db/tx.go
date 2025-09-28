@@ -2,9 +2,9 @@ package db
 
 import (
 	"context"
+	"debt-manager/internal/contextkeys"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,10 +16,9 @@ func NewTxRunner(pool *pgxpool.Pool) *TxRunner {
 	return &TxRunner{pool: pool}
 }
 
-func (r *TxRunner) WithUserTx(
+func (r *TxRunner) WithCtxUserTx(
 	ctx context.Context,
-	userID uuid.UUID,
-	fn func(tx pgx.Tx) error,
+	fn func(q *Queries) error,
 ) error {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -27,9 +26,17 @@ func (r *TxRunner) WithUserTx(
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, "SELECT app.set_user($1)", userID); err != nil {
+	if _, err := tx.Exec(ctx, "SELECT app.set_user($1)", ctx.Value(contextkeys.UserID{})); err != nil {
+		return err
+	}
+
+	if err := fn(New(tx)); err != nil {
 		return err
 	}
 
 	return tx.Commit(ctx)
+}
+
+func (r *TxRunner) Q() *Queries {
+	return New(r.pool)
 }

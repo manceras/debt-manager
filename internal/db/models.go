@@ -56,6 +56,23 @@ func (ns NullCurrency) Value() (driver.Value, error) {
 	return string(ns.Currency), nil
 }
 
+type AppLoginSecret struct {
+	ID           pgtype.UUID
+	PasswordHash pgtype.Text
+	PasswordAlgo string
+	Email        string
+}
+
+type AppSession struct {
+	ID        pgtype.UUID
+	UserID    pgtype.UUID
+	CreatedAt pgtype.Timestamptz
+	ExpiresAt pgtype.Timestamptz
+	RevokedAt pgtype.Timestamptz
+	UserAgent pgtype.Text
+	Ip        pgtype.Text
+}
+
 type AppUsersSafe struct {
 	ID                pgtype.UUID
 	Username          string

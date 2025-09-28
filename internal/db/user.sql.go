@@ -34,6 +34,40 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (pgtype.
 	return register_user, err
 }
 
+const getLoginSecretsByEmail = `-- name: GetLoginSecretsByEmail :one
+SELECT id, password_hash, password_algo, email FROM app.login_secret WHERE email = $1
+`
+
+func (q *Queries) GetLoginSecretsByEmail(ctx context.Context, email string) (AppLoginSecret, error) {
+	row := q.db.QueryRow(ctx, getLoginSecretsByEmail, email)
+	var i AppLoginSecret
+	err := row.Scan(
+		&i.ID,
+		&i.PasswordHash,
+		&i.PasswordAlgo,
+		&i.Email,
+	)
+	return i, err
+}
+
+const getUserByEmail = `-- name: GetUserByEmail :one
+SELECT id, username, email, created_at, password_changed_at, last_login_at FROM app.users_safe WHERE email = $1
+`
+
+func (q *Queries) GetUserByEmail(ctx context.Context, email string) (AppUsersSafe, error) {
+	row := q.db.QueryRow(ctx, getUserByEmail, email)
+	var i AppUsersSafe
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.CreatedAt,
+		&i.PasswordChangedAt,
+		&i.LastLoginAt,
+	)
+	return i, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, email, created_at, password_changed_at, last_login_at FROM app.users_safe WHERE id = $1
 `
@@ -49,5 +83,30 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (AppUsersSafe
 		&i.PasswordChangedAt,
 		&i.LastLoginAt,
 	)
+	return i, err
+}
+
+const updateUserLastLogin = `-- name: UpdateUserLastLogin :exec
+SELECT app.update_last_login($1)
+`
+
+func (q *Queries) UpdateUserLastLogin(ctx context.Context, UserID pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, updateUserLastLogin, UserID)
+	return err
+}
+
+const whoAmI = `-- name: WhoAmI :one
+SELECT current_user, session_user
+`
+
+type WhoAmIRow struct {
+	Column1 interface{}
+	Column2 interface{}
+}
+
+func (q *Queries) WhoAmI(ctx context.Context) (WhoAmIRow, error) {
+	row := q.db.QueryRow(ctx, whoAmI)
+	var i WhoAmIRow
+	err := row.Scan(&i.Column1, &i.Column2)
 	return i, err
 }

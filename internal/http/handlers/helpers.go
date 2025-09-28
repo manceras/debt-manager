@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -24,7 +26,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	}
 }
 
-func WriteError(w http.ResponseWriter, status int, msg string) {
+func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
 }
 
@@ -55,12 +57,8 @@ func HashPassword(password string) (string, error) {
 }
 
 func VerifyPassword(password, encodedHash string) (bool, error) {
-	parts := make([]string, 2)
-	n, err := fmt.Sscanf(encodedHash, "%s$%s", &parts[0], &parts[1])
-	if err != nil {
-		return false, err
-	}
-	if n != 2 {
+	parts := strings.SplitN(encodedHash, "$", 2)
+	if len(parts) != 2 {
 		return false, fmt.Errorf("invalid hash format")
 	}
 	salt, err := base64.RawStdEncoding.DecodeString(parts[0])
@@ -74,3 +72,16 @@ func VerifyPassword(password, encodedHash string) (bool, error) {
 	computedHash := argon2.IDKey([]byte(password), salt, defalutA2.Time, defalutA2.Memory, defalutA2.Threads, defalutA2.KeyLen)
 	return subtle.ConstantTimeCompare(hash, computedHash) == 1, nil
 }
+
+func setCookie(w http.ResponseWriter, name, value string, ttl time.Duration) {
+  http.SetCookie(w, &http.Cookie{
+    Name:     name,
+    Value:    value,
+    Path:     "/",
+    HttpOnly: true,
+    Secure:   true,
+    SameSite: http.SameSiteLaxMode,
+    Expires:  time.Now().Add(ttl),
+  })
+}
+

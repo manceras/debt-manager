@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"debt-manager/internal/db"
-	http_ "debt-manager/internal/http"
 	"debt-manager/internal/http/handlers"
 	"log"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
-
 func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Print("No .env file found")
@@ -29,12 +27,18 @@ func main() {
 	}
 	defer pool.Close()
 
-	q := db.New(pool)
-	server := &handlers.Server{Q: q}
+
+	server := &handlers.Server{
+		HS256PrivateKey: []byte(os.Getenv("HS256_PRIVATE_KEY")),
+		Tx: db.NewTxRunner(pool),
+	}
 
 	mux := http.NewServeMux()
-	mux.Handle("POST /lists", http_.UserMiddleware(http.HandlerFunc(server.CreateList)))
-	mux.Handle("POST /users", http.HandlerFunc(server.CreateUser))
+	mux.Handle("POST /lists", server.Auth(http.HandlerFunc(server.CreateList)))
+
+	mux.Handle("POST /auth/signup", http.HandlerFunc(server.CreateUser))
+	mux.Handle("POST /auth/login", http.HandlerFunc(server.Login))
+
 
 	const addr = ":8080"
 	log.Printf("Starting server on %s", addr)
