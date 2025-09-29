@@ -94,3 +94,38 @@ func (s *Server) CreateList(w http.ResponseWriter, r *http.Request) {
 	}
 
 }
+
+func (s *Server) GetLists(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var lists []db.List
+	err := s.Tx.WithCtxUserTx(ctx, func(q *db.Queries) error {
+		var err error
+		lists, err = q.GetAllLists(ctx)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to retrieve lists")
+			log.Println("failed to retrieve lists:", err)
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Println("transaction failed:", err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, lists)
+}
+
+func (s *Server) GetListByID(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	var list db.List
+	err := s.Tx.WithCtxUserTx(ctx, func(q *db.Queries) error {
+		list, err = q.GetListByID(ctx)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to retrieve list")
+			log.Println("failed to retrieve list:", err)
+			return err
+		}
+		return nil
+}

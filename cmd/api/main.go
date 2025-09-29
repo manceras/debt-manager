@@ -2,49 +2,33 @@ package main
 
 import (
 	"context"
-	"debt-manager/internal/db"
-	"debt-manager/internal/http/handlers"
+	app "debt-manager/internal"
+	"debt-manager/internal/config"
 	"log"
 	"net/http"
-	"os"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 )
+
 func main() {
-	if err := godotenv.Load(); err != nil {
-		log.Print("No .env file found")
-	}
-
-	migrations_dsn := os.Getenv("MIGRATIONS_DSN")
-	dsn := os.Getenv("DATABASE_DSN")
-	db.Migrate(migrations_dsn)
-	ctx := context.Background()
-
-	pool, err := pgxpool.New(ctx, dsn)
+	godotenv.Load()
+	
+	cfg, err := config.Load()
 	if err != nil {
-		log.Fatal(err)
-	}
-	defer pool.Close()
-
-
-	server := &handlers.Server{
-		HS256PrivateKey: []byte(os.Getenv("HS256_PRIVATE_KEY")),
-		Tx: db.NewTxRunner(pool),
+		log.Fatal("cannot load config:", err)
 	}
 
-	mux := http.NewServeMux()
-	mux.Handle("POST /lists", server.Auth(http.HandlerFunc(server.CreateList)))
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	mux.Handle("POST /auth/signup", http.HandlerFunc(server.SignUp))
-	mux.Handle("POST /auth/login", http.HandlerFunc(server.Login))
-	mux.Handle("POST /auth/refresh", http.HandlerFunc(server.Refresh))
-
-
-	const addr = ":8080"
-	log.Printf("Starting server on %s", addr)
-
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
+	DBDSN := "postgres://" + cfg.DBUser + ":" + cfg.DBPassword + "@" + cfg.DBHost + ":" + cfg.DBPort + "/" + cfg.DBName
+	a, err := app.New(ctx, DBDSN, []byte(cfg.JWTSecretKey))
+	if err != nil {
+		log.Fatal("cannot create app:", err)
 	}
+	defer a.Close()
+
+	log.Printf("starting server at :%s...", cfg.Port)
+	http.ListenAndServe(":"+cfg.Port, a.Mux)
+
 }

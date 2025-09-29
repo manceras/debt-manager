@@ -42,6 +42,44 @@ func (q *Queries) CreateUserListRelation(ctx context.Context, arg CreateUserList
 	return i, err
 }
 
+const deleteList = `-- name: DeleteList :exec
+DELETE FROM lists WHERE id = $1
+`
+
+func (q *Queries) DeleteList(ctx context.Context, id pgtype.UUID) error {
+	_, err := q.db.Exec(ctx, deleteList, id)
+	return err
+}
+
+const getAllLists = `-- name: GetAllLists :many
+SELECT id, currency, title, created_at FROM lists
+`
+
+func (q *Queries) GetAllLists(ctx context.Context) ([]List, error) {
+	rows, err := q.db.Query(ctx, getAllLists)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []List
+	for rows.Next() {
+		var i List
+		if err := rows.Scan(
+			&i.ID,
+			&i.Currency,
+			&i.Title,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getListByID = `-- name: GetListByID :one
 SELECT id, currency, title, created_at FROM lists WHERE id = $1
 `
@@ -56,4 +94,51 @@ func (q *Queries) GetListByID(ctx context.Context, id pgtype.UUID) (List, error)
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const getUsersInList = `-- name: GetUsersInList :many
+SELECT id, username, email FROM users
+JOIN users_lists ON user_id = id
+WHERE list_id = $1 AND id <> app.current_user_id()
+`
+
+type GetUsersInListRow struct {
+	ID       pgtype.UUID
+	Username string
+	Email    string
+}
+
+func (q *Queries) GetUsersInList(ctx context.Context, listID pgtype.UUID) ([]GetUsersInListRow, error) {
+	rows, err := q.db.Query(ctx, getUsersInList, listID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetUsersInListRow
+	for rows.Next() {
+		var i GetUsersInListRow
+		if err := rows.Scan(&i.ID, &i.Username, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const updateList = `-- name: UpdateList :exec
+UPDATE lists SET title = $2, currency = $3 WHERE id = $1
+`
+
+type UpdateListParams struct {
+	ID       pgtype.UUID
+	Title    string
+	Currency Currency
+}
+
+func (q *Queries) UpdateList(ctx context.Context, arg UpdateListParams) error {
+	_, err := q.db.Exec(ctx, updateList, arg.ID, arg.Title, arg.Currency)
+	return err
 }

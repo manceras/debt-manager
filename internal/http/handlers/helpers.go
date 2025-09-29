@@ -92,3 +92,15 @@ func setCookie(w http.ResponseWriter, name, value string, ttl time.Duration, pat
 func clearCookie(w http.ResponseWriter, name string, path ...string) {
 	setCookie(w, name, "", -time.Hour, path...)
 }
+
+func GetPathParams(path string, paramNames ...string) map[string]string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) < len(paramNames) {
+		return nil
+	}
+	params := make(map[string]string)
+	for i, name := range paramNames {
+		params[name] = parts[i]
+	}
+	return params
+}
