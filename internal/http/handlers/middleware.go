@@ -5,6 +5,7 @@ import (
 	"debt-manager/internal/contextkeys"
 	"debt-manager/internal/db"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -74,5 +75,33 @@ func (s *Server) Auth(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return nil
 		})
+	})
+}
+
+type statusResponseWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (w *statusResponseWriter) WriteHeader(code int) {
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func Logger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		sw := &statusResponseWriter{ResponseWriter: w, status: http.StatusOK}
+
+		next.ServeHTTP(sw, r)
+
+		fmt.Printf(
+			"%s %s -> %d (%v)\n",
+			r.Method,
+			r.URL.Path,
+			sw.status,
+			time.Since(start),
+		)
 	})
 }

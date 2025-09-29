@@ -42,13 +42,20 @@ func (q *Queries) CreateUserListRelation(ctx context.Context, arg CreateUserList
 	return i, err
 }
 
-const deleteList = `-- name: DeleteList :exec
-DELETE FROM lists WHERE id = $1
+const deleteList = `-- name: DeleteList :one
+DELETE FROM lists WHERE id = $1 RETURNING id, currency, title, created_at
 `
 
-func (q *Queries) DeleteList(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteList, id)
-	return err
+func (q *Queries) DeleteList(ctx context.Context, id pgtype.UUID) (List, error) {
+	row := q.db.QueryRow(ctx, deleteList, id)
+	var i List
+	err := row.Scan(
+		&i.ID,
+		&i.Currency,
+		&i.Title,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const getAllLists = `-- name: GetAllLists :many
@@ -129,13 +136,17 @@ func (q *Queries) GetUsersInList(ctx context.Context, listID pgtype.UUID) ([]Get
 }
 
 const updateList = `-- name: UpdateList :exec
-UPDATE lists SET title = $2, currency = $3 WHERE id = $1
+UPDATE lists
+SET
+  title    = COALESCE($2, title),
+  currency = COALESCE($3, currency)
+WHERE id = $1
 `
 
 type UpdateListParams struct {
 	ID       pgtype.UUID
-	Title    string
-	Currency Currency
+	Title    pgtype.Text
+	Currency NullCurrency
 }
 
 func (q *Queries) UpdateList(ctx context.Context, arg UpdateListParams) error {

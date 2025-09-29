@@ -2,13 +2,14 @@ package http
 
 import (
 	"debt-manager/internal/http/handlers"
-	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 func NewMux(s *handlers.Server) *chi.Mux {
 	r := chi.NewRouter()
+	r.Use(middleware.Logger)
 
 	// public
 	r.Post("/auth/signup", s.SignUp)
@@ -20,6 +21,9 @@ func NewMux(s *handlers.Server) *chi.Mux {
 		private.Use(s.Auth)
 		private.Post("/lists", s.CreateList)
 		private.Get("/lists", s.GetLists)
+		private.Get("/lists/{list_id}", s.GetListByID)
+		private.Patch("/lists/{list_id}", s.UpdateList)
+		private.Delete("/lists/{list_id}", s.DeleteList)
 	})
 
 	return r

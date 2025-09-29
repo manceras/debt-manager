@@ -8,10 +8,14 @@ INSERT INTO users_lists (user_id, list_id) VALUES ($1, $2) RETURNING *;
 SELECT * FROM lists WHERE id = $1;
 
 -- name: UpdateList :exec
-UPDATE lists SET title = $2, currency = $3 WHERE id = $1;
+UPDATE lists
+SET
+  title    = COALESCE(sqlc.narg(title), title),
+  currency = COALESCE(sqlc.narg(currency), currency)
+WHERE id = $1;
 
--- name: DeleteList :exec
-DELETE FROM lists WHERE id = $1;
+-- name: DeleteList :one
+DELETE FROM lists WHERE id = $1 RETURNING *;
 
 -- name: GetAllLists :many
 SELECT * FROM lists;
