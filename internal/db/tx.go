@@ -3,8 +3,11 @@ package db
 import (
 	"context"
 	"debt-manager/internal/contextkeys"
+	"log"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -26,9 +29,15 @@ func (r *TxRunner) WithCtxUserTx(
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, "SELECT app.set_user($1)", ctx.Value(contextkeys.UserID{})); err != nil {
+	userId := ctx.Value(contextkeys.UserID{}).(uuid.UUID)
+
+	if _, err := tx.Exec(ctx, "SELECT app.set_user($1)", userId.String()); err != nil {
 		return err
 	}
+	
+	var currentUser pgtype.UUID
+	tx.QueryRow(ctx, "SELECT current_setting('app.current_user', true)").Scan(&currentUser)
+	log.Printf("Current user in transaction: %v", currentUser)
 
 	if err := fn(New(tx)); err != nil {
 		return err

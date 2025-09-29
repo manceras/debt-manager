@@ -1,9 +1,13 @@
 package handlers
 
 import (
+	"debt-manager/internal/contextkeys"
 	"debt-manager/internal/db"
 	"log"
 	"net/http"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type CreateListRequest struct {
@@ -47,8 +51,11 @@ func (s *Server) CreateList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := s.Tx.WithCtxUserTx(r.Context(), func(q *db.Queries) error {
-		list, err := q.CreateList(r.Context(), db.CreateListParams{
+	ctx := r.Context()
+	err := s.Tx.WithCtxUserTx(ctx, func(q *db.Queries) error {
+		newListID := pgtype.UUID{Bytes: uuid.New(), Valid: true}
+		err := q.CreateList(r.Context(), db.CreateListParams{
+			ID:       newListID,
 			Title:    req.Title,
 			Currency: db.Currency(req.Currency),
 		})
@@ -57,10 +64,30 @@ func (s *Server) CreateList(w http.ResponseWriter, r *http.Request) {
 			log.Println("failed to create list:", err)
 			return err
 		}
+
+		var userID = ctx.Value(contextkeys.UserID{}).(uuid.UUID)
+
+		_, err = q.CreateUserListRelation(r.Context(), db.CreateUserListRelationParams{
+			UserID: pgtype.UUID{Bytes: userID, Valid: true},
+			ListID: newListID,
+		})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to create user-list relation")
+			log.Println("failed to create user-list relation:", err)
+			return err
+		}
+
+		list, err := q.GetListByID(r.Context(), newListID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to retrieve created list")
+			log.Println("failed to retrieve created list:", err)
+			return err
+		}
+
 		writeJSON(w, http.StatusOK, list)
 		return nil
 	})
-	
+
 	if err != nil {
 		log.Println("transaction failed:", err)
 		return

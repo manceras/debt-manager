@@ -69,7 +69,7 @@ func (s *Server) Auth(next http.Handler) http.Handler {
 				return err
 			}
 
-			ctx := context.WithValue(r.Context(), contextkeys.UserID{}, claims.UserID)
+			ctx := context.WithValue(r.Context(), contextkeys.UserID{}, uuid.MustParse(claims.UserID))
 			ctx = context.WithValue(ctx, contextkeys.SessionID{}, claims.SessionID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 			return nil

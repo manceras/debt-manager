@@ -7,19 +7,47 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const createList = `-- name: CreateList :one
-INSERT INTO lists (title, currency) VALUES ($1, $2) RETURNING id, currency, title, created_at
+const createList = `-- name: CreateList :exec
+INSERT INTO lists (id, title, currency) VALUES ($1, $2, $3)
 `
 
 type CreateListParams struct {
+	ID       pgtype.UUID
 	Title    string
 	Currency Currency
 }
 
-func (q *Queries) CreateList(ctx context.Context, arg CreateListParams) (List, error) {
-	row := q.db.QueryRow(ctx, createList, arg.Title, arg.Currency)
+func (q *Queries) CreateList(ctx context.Context, arg CreateListParams) error {
+	_, err := q.db.Exec(ctx, createList, arg.ID, arg.Title, arg.Currency)
+	return err
+}
+
+const createUserListRelation = `-- name: CreateUserListRelation :one
+INSERT INTO users_lists (user_id, list_id) VALUES ($1, $2) RETURNING user_id, list_id
+`
+
+type CreateUserListRelationParams struct {
+	UserID pgtype.UUID
+	ListID pgtype.UUID
+}
+
+func (q *Queries) CreateUserListRelation(ctx context.Context, arg CreateUserListRelationParams) (UsersList, error) {
+	row := q.db.QueryRow(ctx, createUserListRelation, arg.UserID, arg.ListID)
+	var i UsersList
+	err := row.Scan(&i.UserID, &i.ListID)
+	return i, err
+}
+
+const getListByID = `-- name: GetListByID :one
+SELECT id, currency, title, created_at FROM lists WHERE id = $1
+`
+
+func (q *Queries) GetListByID(ctx context.Context, id pgtype.UUID) (List, error) {
+	row := q.db.QueryRow(ctx, getListByID, id)
 	var i List
 	err := row.Scan(
 		&i.ID,

@@ -16,11 +16,11 @@ time = true
 [[watch]]
 dir = "internal/db/queries"
 include_ext = ["sql"]
-cmd = "sqlc generate"
+cmd = "~/go/bin/sqlc generate"
 
 # Also regenerate when sqlc.yaml changes
 [[watch]]
 dir = "."
 include_ext = ["yaml", "yml"]
 files = ["sqlc.yaml"]
-cmd = "sqlc generate"
+cmd = "~/go/bin/sqlc generate"
