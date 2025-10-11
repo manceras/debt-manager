@@ -3,7 +3,7 @@ package internal
 import (
 	"context"
 	"debt-manager/internal/db"
-	http_ "debt-manager/internal/http"
+	"debt-manager/internal/http"
 	"debt-manager/internal/http/handlers"
 	"log"
 
@@ -28,7 +28,7 @@ func New(ctx context.Context, dsn string, jwtKey []byte) (*App, error) {
 		HS256PrivateKey: jwtKey,
 	}
 
-	mux := http_.NewMux(server)
+	mux := http.NewMux(server)
 
 	return &App{
 		DB:     pool,

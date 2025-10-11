@@ -12,3 +12,8 @@ SELECT * FROM app.login_secret WHERE email = $1;
 
 -- name: UpdateUserLastLogin :exec
 SELECT app.update_last_login($1);
+
+-- name: GetUsersFromList :many
+SELECT u.* FROM app.users_safe u
+JOIN users_lists ul ON u.id = ul.user_id
+WHERE ul.list_id = $1;

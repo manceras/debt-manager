@@ -64,65 +64,63 @@ func createRefreshToken() (raw string, hash []byte, err error) {
 	return raw, h[:], nil
 }
 
-func (s *Server) createSession(user db.AppUsersSafe, w http.ResponseWriter, r *http.Request) {
-	s.Tx.WithTx(r.Context(), func(q *db.Queries) error {
-		session, err := q.CreateSession(r.Context(), db.CreateSessionParams{
-			UserID:    user.ID,
-			ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(365 * 24 * time.Hour), Valid: true},
-			UserAgent: pgtype.Text{String: r.UserAgent(), Valid: true},
-			Ip: pgtype.Text{String: r.RemoteAddr, Valid: true},
-		})
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to create session")
-			log.Println("failed to create session:", err)
-			return err
-		}
-
-		rtRaw, rtHash, err := createRefreshToken()
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to create refresh token")
-			log.Println("failed to create refresh token:", err)
-			return err
-		}
-
-		expiresAt := time.Now().Add(expiration_time)
-		_, err = q.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
-			ID: 			pgtype.UUID{Bytes: uuid.New(), Valid: true},
-			SessionID: session.ID,
-			TokenHash: rtHash,
-			ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
-		})
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to store refresh token")
-			log.Println("failed to store refresh token:", err)
-			return err
-		}
-
-		signed, err := s.makeAccessToken(&Claims{
-			SessionID: session.ID.String(),
-			UserID:    user.ID.String(),
-			RegisteredClaims: jwt.RegisteredClaims{
-				ExpiresAt: jwt.NewNumericDate(time.Now().Add(atTTL)),
-				IssuedAt:  jwt.NewNumericDate(time.Now()),
-				Issuer:    "debt-manager",
-				Subject:   fmt.Sprint(user.ID),
-			},
-		})
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "failed to create access token")
-			log.Println("failed to create access token:", err)
-		}
-
-		setCookie(w, "refresh_token", rtRaw, time.Until(expiresAt), "/auth/refresh")
-
-		writeJSON(w, http.StatusOK, map[string]any{
-			"access_token": signed,
-			"token_type":   "Bearer",
-			"expires_in":   int(atTTL.Seconds()),
-		})
-
-		return nil
+func (s *Server) createSession(user db.AppUsersSafe, w http.ResponseWriter, r *http.Request, q *db.Queries) error {
+	session, err := q.CreateSession(r.Context(), db.CreateSessionParams{
+		UserID:    user.ID,
+		ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(365 * 24 * time.Hour), Valid: true},
+		UserAgent: pgtype.Text{String: r.UserAgent(), Valid: true},
+		Ip: pgtype.Text{String: r.RemoteAddr, Valid: true},
 	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create session")
+		log.Println("failed to create session:", err)
+		return err
+	}
+
+	rtRaw, rtHash, err := createRefreshToken()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create refresh token")
+		log.Println("failed to create refresh token:", err)
+		return err
+	}
+
+	expiresAt := time.Now().Add(expiration_time)
+	_, err = q.CreateRefreshToken(r.Context(), db.CreateRefreshTokenParams{
+		ID: 			pgtype.UUID{Bytes: uuid.New(), Valid: true},
+		SessionID: session.ID,
+		TokenHash: rtHash,
+		ExpiresAt: pgtype.Timestamptz{Time: expiresAt, Valid: true},
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to store refresh token")
+		log.Println("failed to store refresh token:", err)
+		return err
+	}
+
+	signed, err := s.makeAccessToken(&Claims{
+		SessionID: session.ID.String(),
+		UserID:    user.ID.String(),
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(atTTL)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+			Issuer:    "debt-manager",
+			Subject:   fmt.Sprint(user.ID),
+		},
+	})
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "failed to create access token")
+		log.Println("failed to create access token:", err)
+	}
+
+	setCookie(w, "refresh_token", rtRaw, time.Until(expiresAt), "/auth/refresh")
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"access_token": signed,
+		"token_type":   "Bearer",
+		"expires_in":   int(atTTL.Seconds()),
+	})
+
+	return nil
 }
 
 func (s *Server) SignUp(w http.ResponseWriter, r *http.Request) {
@@ -193,7 +191,9 @@ func (s *Server) SignUp(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		s.createSession(user, w, r)
+		log.Println("User created with ID:", user.ID)
+
+		s.createSession(user, w, r, q)
 		return nil
 	})
 }
@@ -256,7 +256,7 @@ func (s *Server) Login(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		s.createSession(user, w, r)
+		s.createSession(user, w, r, q)
 		return nil
 	})
 }

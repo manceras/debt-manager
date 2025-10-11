@@ -28,6 +28,13 @@ const (
 	CurrencyCNY Currency = "CNY"
 )
 
+type ListResponse struct {
+	ID       uuid.UUID `json:"id"`
+	Title    string    `json:"title"`
+	Currency string    `json:"currency"`
+	CreatedAt string    `json:"created_at"`
+}
+
 func (c Currency) Valid() bool {
 	switch c {
 	case CurrencyUSD, CurrencyEUR, CurrencyGBP, CurrencyJPY, CurrencyCNY:
@@ -87,7 +94,12 @@ func (s *Server) CreateList(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		writeJSON(w, http.StatusOK, list)
+		writeJSON(w, http.StatusOK, ListResponse{
+			ID:        list.ID.Bytes,
+			Title:     list.Title,
+			Currency:  string(list.Currency),
+			CreatedAt: list.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		})
 		return nil
 	})
 
@@ -117,7 +129,17 @@ func (s *Server) GetLists(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, lists)
+	responses := make([]ListResponse, len(lists))
+	for i, list := range lists {
+		responses[i] = ListResponse{
+			ID:        list.ID.Bytes,
+			Title:     list.Title,
+			Currency:  string(list.Currency),
+			CreatedAt: list.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	writeJSON(w, http.StatusOK, responses)
 }
 
 func (s *Server) GetListByID(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +162,12 @@ func (s *Server) GetListByID(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		writeJSON(w, http.StatusOK, list)
+		writeJSON(w, http.StatusOK, ListResponse{
+			ID:        list.ID.Bytes,
+			Title:     list.Title,
+			Currency:  string(list.Currency),
+			CreatedAt: list.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		})
 		return nil
 	})
 	if err != nil {
@@ -218,7 +245,12 @@ func (s *Server) UpdateList(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		writeJSON(w, http.StatusOK, list)
+		writeJSON(w, http.StatusOK, ListResponse{
+			ID:        list.ID.Bytes,
+			Title:     list.Title,
+			Currency:  string(list.Currency),
+			CreatedAt: list.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+		})
 		return nil
 	})
 }

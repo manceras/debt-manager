@@ -78,6 +78,7 @@ npm test
 ## Features that I want to implement
 - [ ] Log out
 - [ ] Frontend
+- [ ] Categories
 
 ## 📜 License
 MIT — free to use, modify, and share.  

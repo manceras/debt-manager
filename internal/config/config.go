@@ -1,20 +1,43 @@
 package config
 
-import "os"
+import (
+	"log"
+	"net/url"
+	"os"
+)
 
 type Config struct {
-	Port            	 string
-	DBHost						 string
-	DBPort						 string
-	DBName 						 string
-	DBUser						 string
-	DBPassword				 string
-	MigrationsUser		 string
-	MigrationsPassword string
-	JWTSecretKey			 string
+	Port            	 	string
+	DBHost						 	string
+	DBPort						 	string
+	DBName 						 	string
+	DBUser						 	string
+	DBPassword				 	string
+	MigrationsUser		 	string
+	MigrationsPassword 	string
+	JWTSecretKey			 	string
+	BaseURL 						*url.URL
+}
+
+func baseURL(protocol, host, port string) string {
+	if (protocol == "http" && port == "80") || (protocol == "https" && port == "443") {
+		return protocol + "://" + host
+	}
+	return protocol + "://" + host + ":" + port
 }
 
 func Load() (Config, error) {
+	stringURL := baseURL(
+		getenv("PROTOCOL", "http"),
+		getenv("HOST", "localhost"),
+		getenv("PORT", "8080"),
+	)
+
+	baseURL, err := url.Parse(stringURL)
+	if err != nil {
+		log.Fatalf("Invalid BASE_URL: %v", err)
+	}
+
 	cfg := Config{
 		Port: getenv("PORT", "8080"),
 		DBHost: getenv("DB_HOST"),
@@ -25,7 +48,7 @@ func Load() (Config, error) {
 		MigrationsUser: getenv("MIGRATIONS_USER"),
 		MigrationsPassword: getenv("MIGRATIONS_PASSWORD"),
 		JWTSecretKey: getenv("JWT_SECRET_KEY"),
-
+		BaseURL: baseURL,
 	}
 	return cfg, nil
 }

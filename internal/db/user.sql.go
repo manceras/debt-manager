@@ -86,6 +86,39 @@ func (q *Queries) GetUserByID(ctx context.Context, id pgtype.UUID) (AppUsersSafe
 	return i, err
 }
 
+const getUsersFromList = `-- name: GetUsersFromList :many
+SELECT u.id, u.username, u.email, u.created_at, u.password_changed_at, u.last_login_at FROM app.users_safe u
+JOIN users_lists ul ON u.id = ul.user_id
+WHERE ul.list_id = $1
+`
+
+func (q *Queries) GetUsersFromList(ctx context.Context, listID pgtype.UUID) ([]AppUsersSafe, error) {
+	rows, err := q.db.Query(ctx, getUsersFromList, listID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AppUsersSafe
+	for rows.Next() {
+		var i AppUsersSafe
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.Email,
+			&i.CreatedAt,
+			&i.PasswordChangedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateUserLastLogin = `-- name: UpdateUserLastLogin :exec
 SELECT app.update_last_login($1)
 `

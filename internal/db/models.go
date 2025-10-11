@@ -122,6 +122,18 @@ type Division struct {
 	PaymentID pgtype.UUID
 }
 
+type Invitation struct {
+	ID              pgtype.UUID
+	Hash            string
+	InvitedToListID pgtype.UUID
+	ExpiresAt       pgtype.Timestamptz
+	RevokedAt       pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	CreatedBy       pgtype.UUID
+	UsedBy          pgtype.UUID
+	UsedAt          pgtype.Timestamptz
+}
+
 type List struct {
 	ID        pgtype.UUID
 	Currency  Currency
