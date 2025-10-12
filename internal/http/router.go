@@ -36,6 +36,20 @@ func NewMux(s *handlers.Server) *chi.Mux {
 
 		// Users
 		private.Get("/lists/{list_id}/users", s.GetUsersFromList)
+
+		// Payments
+		private.Post("/lists/{list_id}/payments", s.CreatePayment)
+		private.Get("/lists/{list_id}/payments", s.GetAllPaymentsForList)
+		private.Delete("/lists/{list_id}/payments/{payment_id}", s.DeletePaymentByID)
+
+		// Balances
+		private.Get("/lists/{list_id}/balances", s.GetNetBalances)
+
+		// Transactions
+		private.Get("/lists/{list_id}/transactions", s.GetSugestedTransactions)
+
+		// Deposits
+		private.Post("/lists/{list_id}/deposits", s.CreateDeposit)
 	})
 
 	return r

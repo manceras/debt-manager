@@ -1,6 +1,6 @@
 -- name: CreatePayment :one
-INSERT INTO public.payments (payer_user_id, amount, photo_url, list_id)
-VALUES ($1, $2, $3, $4) RETURNING *;
+INSERT INTO public.payments (payer_user_id, amount, photo_url, list_id, title)
+VALUES ($1, $2, $3, $4, $5) RETURNING *;
 
 -- name: GetAllPaymentsForList :many
 SELECT * FROM public.payments

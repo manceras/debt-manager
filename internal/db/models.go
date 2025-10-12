@@ -148,6 +148,7 @@ type Payment struct {
 	PhotoUrl    pgtype.Text
 	PayerUserID pgtype.UUID
 	ListID      pgtype.UUID
+	Title       pgtype.Text
 }
 
 type PaymentsCategory struct {
