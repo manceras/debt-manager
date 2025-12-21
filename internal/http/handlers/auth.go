@@ -199,8 +199,8 @@ func (s *Server) SignUp(w http.ResponseWriter, r *http.Request) {
 }
 
 type LoginRequest struct {
-	Email    string
-	Password string
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type Claims struct {
