@@ -19,9 +19,9 @@ import (
 )
 
 type CreateUserRequest struct {
-	Username string
-	Email    string
-	Password string
+	Username string	`json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 const(
