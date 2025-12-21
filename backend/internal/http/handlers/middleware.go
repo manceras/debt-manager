@@ -45,7 +45,7 @@ func (s *Server) Auth(next http.Handler) http.Handler {
 		token, err := jwt.ParseWithClaims(
 			tokenStr,
 			&Claims{},
-			func(token *jwt.Token) (interface{}, error) {
+			func(token *jwt.Token) (any, error) {
 				return s.HS256PrivateKey, nil
 			},
 			jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),

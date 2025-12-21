@@ -169,9 +169,7 @@ func (s *Server) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("Creating user:", req.Username, req.Email)
-
-	s.Tx.WithTx(r.Context(), func(q *db.Queries) error {
+	err = s.Tx.WithTx(r.Context(), func(q *db.Queries) error {
 		user_id, err := q.CreateUser(r.Context(), db.CreateUserParams{
 			Email: req.Email,
 			Username: req.Username,
@@ -191,11 +189,15 @@ func (s *Server) SignUp(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		log.Println("User created with ID:", user.ID)
-
 		s.createSession(user, w, r, q)
 		return nil
 	})
+
+	if err != nil {
+		log.Println("transaction failed during signup:", err)
+		writeError(w, http.StatusInternalServerError, "failed to complete signup")
+		return
+	}
 }
 
 type LoginRequest struct {
@@ -332,7 +334,6 @@ func (s *Server) Refresh(w http.ResponseWriter, r *http.Request) {
 		}
 
 		new_rt_id := uuid.New()
-		log.Println("Old token ID:", row.RtID.Bytes, "   New token ID:", new_rt_id)
 		affected, err := q.MarkOldTokenReplaced(ctx, db.MarkOldTokenReplacedParams{
 			ID: row.RtID,
 			ReplacedByID: pgtype.UUID{Bytes: new_rt_id, Valid: true},
