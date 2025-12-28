@@ -174,6 +174,10 @@ func (s *Server) SignUp(w http.ResponseWriter, r *http.Request) {
 			PasswordAlgo: "argon2id",
 		})
 		if err != nil {
+			if strings.Contains(err.Error(), "email_already_registered") {
+				writeError(w, http.StatusConflict, "email is already registered")
+				return nil
+			}
 			writeError(w, http.StatusInternalServerError, "failed to create user")
 			log.Println("failed to create user:", err)
 			return err
