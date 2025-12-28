@@ -113,12 +113,9 @@ func (s *Server) createSession(user db.AppUsersSafe, w http.ResponseWriter, r *h
 	}
 
 	setCookie(w, "refresh_token", rtRaw, time.Until(expiresAt), "/auth/refresh")
+	setCookie(w, "access_token", signed, atTTL, "/")
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"access_token": signed,
-		"token_type":   "Bearer",
-		"expires_in":   int(atTTL.Seconds()),
-	})
+	w.WriteHeader(http.StatusNoContent)
 
 	return nil
 }
