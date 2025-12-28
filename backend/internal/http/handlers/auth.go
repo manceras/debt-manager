@@ -192,7 +192,6 @@ func (s *Server) SignUp(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Println("transaction failed during signup:", err)
-		writeError(w, http.StatusInternalServerError, "failed to complete signup")
 		return
 	}
 }
