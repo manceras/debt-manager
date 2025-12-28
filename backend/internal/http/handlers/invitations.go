@@ -30,12 +30,12 @@ func generateInvitationHash() (string, error) {
 type InvitationResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Hash      string    `json:"hash"`
-	CreatedAt string    `json:"created_at"`
-	ExpiresAt string    `json:"expires_at"`
-	CreatedBy uuid.UUID `json:"created_by"`
-	InvitedBy *string   `json:"invited_by,omitempty"`
-	ListTitle *string   `json:"list_title,omitempty"`
-	RevokedAt *string   `json:"revoked_at,omitempty"`
+	CreatedAt string    `json:"createdAt"`
+	ExpiresAt string    `json:"expiresAt"`
+	CreatedBy uuid.UUID `json:"createdBy"`
+	InvitedBy *string   `json:"invitedBy,omitempty"`
+	ListTitle *string   `json:"listTitle,omitempty"`
+	RevokedAt *string   `json:"revokedAt,omitempty"`
 }
 
 func generateInvitationLink(hash string) (string, error) {

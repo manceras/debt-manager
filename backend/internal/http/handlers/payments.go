@@ -20,21 +20,21 @@ import (
 )
 
 type DivisionRequest struct {
-	OweUserID uuid.UUID `json:"owe_user_id"`
+	OweUserID uuid.UUID `json:"oweUserId"`
 	Amount    float64   `json:"amount"`
 }
 
 type DivisionResponse struct {
 	ID        uuid.UUID `json:"id"`
-	OweUserID uuid.UUID `json:"owe_user_id"`
+	OweUserID uuid.UUID `json:"oweUserId"`
 	Amount    float64   `json:"amount"`
 }
 
 type PaymentRequest struct {
 	Title       string            `json:"title"`
 	Amount      float64           `json:"amount"`
-	PhotoURL    *string           `json:"photo_url"`
-	PayerUserID uuid.UUID         `json:"payer_user_id"`
+	PhotoURL    *string           `json:"photoUrl"`
+	PayerUserID uuid.UUID         `json:"payerUserId"`
 	Divisions   []DivisionRequest `json:"divisions"`
 }
 
@@ -42,11 +42,11 @@ type PaymentResponse struct {
 	ID          uuid.UUID         `json:"id"`
 	Title       string            `json:"title"`
 	Amount      float64           `json:"amount"`
-	PhotoURL    *string           `json:"photo_url,omitempty"`
-	PayerUserID uuid.UUID         `json:"payer_user_id"`
+	PhotoURL    *string           `json:"photoUrl,omitempty"`
+	PayerUserID uuid.UUID         `json:"payerUserId"`
 	Divisions   []DivisionRequest `json:"divisions"`
-	CreatedAt   string            `json:"created_at"`
-	ListID      uuid.UUID         `json:"list_id"`
+	CreatedAt   string            `json:"createdAt"`
+	ListID      uuid.UUID         `json:"listId"`
 }
 
 type TransactionResponse struct {

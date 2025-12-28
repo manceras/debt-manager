@@ -32,7 +32,7 @@ type ListResponse struct {
 	ID       uuid.UUID `json:"id"`
 	Title    string    `json:"title"`
 	Currency string    `json:"currency"`
-	CreatedAt string    `json:"created_at"`
+	CreatedAt string    `json:"createdAt"`
 }
 
 func (c Currency) Valid() bool {

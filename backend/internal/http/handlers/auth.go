@@ -206,8 +206,8 @@ type LoginRequest struct {
 }
 
 type Claims struct {
-	SessionID string `json:"session_id"`
-	UserID    string `json:"user_id"`
+	SessionID string `json:"sessionId"`
+	UserID    string `json:"userId"`
 	jwt.RegisteredClaims
 }
 

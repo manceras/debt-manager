@@ -15,8 +15,8 @@ type UserResponse struct {
 	ID        uuid.UUID `json:"id"`
 	Email     string    `json:"email"`
 	Username  string    `json:"username"`
-	CreatedAt string    `json:"created_at"`
-	ItsYou    bool      `json:"its_you,omitempty"`
+	CreatedAt string    `json:"createdAt"`
+	ItsYou    bool      `json:"itsYou,omitempty"`
 }
 
 func (s *Server) GetUsersFromList(w http.ResponseWriter, r *http.Request) {
