@@ -298,7 +298,6 @@ func (s *Server) Refresh(w http.ResponseWriter, r *http.Request) {
 			return errors.New("refresh token reused")
 		}
 
-
 		return nil
 	})
 
@@ -377,12 +376,9 @@ func (s *Server) Refresh(w http.ResponseWriter, r *http.Request) {
 		}
 
 		setCookie(w, "refresh_token", new_rt_raw, time.Until(expire_at), "/auth/refresh")
+		setCookie(w, "access_token", at, atTTL, "/")
 
-		writeJSON(w, http.StatusOK, map[string]any{
-			"access_token": at,
-			"token_type":   "Bearer",
-			"expires_in":   int(atTTL.Seconds()),
-		})
+		w.WriteHeader(http.StatusNoContent)
 
 		return nil
 	})
