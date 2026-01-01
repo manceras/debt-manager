@@ -21,6 +21,7 @@ func NewMux(s *handlers.Server) *chi.Mux {
 		private.Use(s.Auth)
 
 		private.Get("/auth/me", s.Me)
+		private.Post("/auth/logout", s.Logout)
 
 		// Lists
 		private.Post("/lists", s.CreateList)

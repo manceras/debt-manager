@@ -385,6 +385,31 @@ func (s *Server) Refresh(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) Logout(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	err := s.Tx.WithCtxUserTx(ctx, func(q *db.Queries) error {
+		var sessionID uuid.UUID = ctx.Value(contextkeys.SessionID{}).(uuid.UUID)
+
+		err := q.RevokeWholeSession(ctx, pgtype.UUID{Bytes: sessionID, Valid: true})
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to revoke sessions")
+			log.Println("failed to revoke sessions:", err)
+			return err
+		}
+
+		clearCookie(w, "access_token")
+		clearCookie(w, "refresh_token")
+
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	})
+
+	if err != nil {
+		log.Println("transaction failed during Logout:", err)
+		return
+	}
+}
+
 func (s *Server) Me(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
