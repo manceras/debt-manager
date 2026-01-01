@@ -113,7 +113,7 @@ func (s *Server) createSession(user db.AppUsersSafe, w http.ResponseWriter, r *h
 		log.Println("failed to create access token:", err)
 	}
 
-	setCookie(w, "refresh_token", rtRaw, time.Until(expiresAt), "/auth/refresh")
+	setCookie(w, "refresh_token", rtRaw, time.Until(expiresAt), "/")
 	setCookie(w, "access_token", signed, atTTL, "/")
 
 	w.WriteHeader(http.StatusNoContent)
@@ -376,7 +376,7 @@ func (s *Server) Refresh(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 
-		setCookie(w, "refresh_token", new_rt_raw, time.Until(expire_at), "/auth/refresh")
+		setCookie(w, "refresh_token", new_rt_raw, time.Until(expire_at), "/")
 		setCookie(w, "access_token", at, atTTL, "/")
 
 		w.WriteHeader(http.StatusNoContent)
