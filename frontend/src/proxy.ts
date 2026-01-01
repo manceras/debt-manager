@@ -4,7 +4,7 @@ import { refreshTokensCore } from "./lib/api/auth-core";
 const publicRoutes = ["/login", "/signup"];
 const protectedRoutes = ["/app"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
 	const { pathname } = request.nextUrl;
 
 	const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
