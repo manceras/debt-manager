@@ -3,6 +3,7 @@ package handlers
 import (
 	"crypto/rand"
 	"crypto/sha256"
+	"debt-manager/internal/contextkeys"
 	"debt-manager/internal/db"
 	"encoding/base64"
 	"errors"
@@ -382,4 +383,36 @@ func (s *Server) Refresh(w http.ResponseWriter, r *http.Request) {
 
 		return nil
 	})
+}
+
+func (s *Server) Me(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	err := s.Tx.WithCtxUserTx(ctx, func(q *db.Queries) error {
+		var userID uuid.UUID = ctx.Value(contextkeys.UserID{}).(uuid.UUID)
+		var pgUserID = pgtype.UUID{Bytes: userID, Valid: true}
+		
+		user, err := q.GetUserByID(ctx, pgUserID)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "failed to get user info")
+			log.Println("failed to get user info:", err)
+			return err
+		}
+
+		resp := UserResponse{
+			ID:        user.ID.Bytes,
+			Email:     user.Email,
+			Username:  user.Username,
+			CreatedAt: user.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
+			ItsYou:    true,
+		}
+
+		writeJSON(w, http.StatusOK, resp)
+		return nil
+	})
+
+	if err != nil {
+		log.Println("transaction failed during Me:", err)
+		return
+	}
 }
