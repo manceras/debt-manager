@@ -404,7 +404,6 @@ func (s *Server) Me(w http.ResponseWriter, r *http.Request) {
 			Email:     user.Email,
 			Username:  user.Username,
 			CreatedAt: user.CreatedAt.Time.Format("2006-01-02T15:04:05Z07:00"),
-			ItsYou:    true,
 		}
 
 		writeJSON(w, http.StatusOK, resp)
