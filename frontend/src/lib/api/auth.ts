@@ -1,60 +1,34 @@
 import { cookies } from "next/headers";
-
-const BASE_URL = process.env.API_URL;
+import { refreshTokensCore } from "./auth-core";
 
 export async function refreshToken(): Promise<string | null> {
-	const cookieStore = await cookies();
-	const refreshToken = cookieStore.get('refresh_token')?.value;
+    const cookieStore = await cookies();
+    const oldRefreshToken = cookieStore.get('refresh_token')?.value;
 
-	if (!refreshToken) {
-		return null;
-	};
+    if (!oldRefreshToken) return null;
 
-	try {
-		const response = await fetch(`${BASE_URL}/auth/refresh`, {
-			method: 'POST',
-			headers: {
-				Cookie: `refresh_token=${refreshToken}`,
-			}
-		});
-		if (!response.ok) {
-			return null;
-		}
+    // Use the core logic
+    const tokens = await refreshTokensCore(oldRefreshToken);
 
-		const setCookieHeaders = response.headers.getSetCookie();
+    if (!tokens) return null;
 
-		if (!setCookieHeaders) {
-			return null;
-		};
+    // Apply side effects (Setting cookies in Node.js context)
+    cookieStore.set('access_token', tokens.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        maxAge: 15 * 60,
+    });
 
-		let newToken: null | string = null;
+    if (tokens.refreshToken) {
+        cookieStore.set('refresh_token', tokens.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            path: '/',
+            maxAge: 45 * 24 * 60 * 60,
+        });
+    }
 
-		setCookieHeaders.forEach((cookieString) => {
-			const [nameValue] = cookieString.split(';');
-			const [name, value] = nameValue.split('=');
-
-			if (name === 'access_token') {
-				newToken = value;
-				cookieStore.set('access_token', value, {
-					httpOnly: true,
-					secure: process.env.NODE_ENV === 'production',
-					path: '/',
-					maxAge: 15 * 60,
-				});
-			}
-
-			if (name === 'refresh_token') {
-				cookieStore.set('refresh_token', value, {
-					httpOnly: true,
-					secure: process.env.NODE_ENV === 'production',
-					path: '/',
-					maxAge: 45 * 24 * 60 * 60,
-				});
-			}
-		});
-
-		return newToken as null | string;
-	} catch (error) {
-		return null;
-	}
+    return tokens.accessToken;
 }
+
