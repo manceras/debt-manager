@@ -15,11 +15,12 @@ func NewMux(s *handlers.Server) *chi.Mux {
 	r.Post("/auth/signup", s.SignUp)
 	r.Post("/auth/login", s.Login)
 	r.Post("/auth/refresh", s.Refresh)
-	r.Get("/auth/me", s.Me)
 
 	// private
 	r.Group(func(private chi.Router){
 		private.Use(s.Auth)
+
+		private.Get("/auth/me", s.Me)
 
 		// Lists
 		private.Post("/lists", s.CreateList)
