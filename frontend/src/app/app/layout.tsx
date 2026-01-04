@@ -1,4 +1,5 @@
 import Navbar from "@/components/layout/navbar";
+import { TitleProvider } from "@/context/title-context";
 import { apiClient } from "@/lib/api/client";
 import { User } from "@/types/user";
 
@@ -16,9 +17,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 	}
 
 	return (
-		<div className="flex-col h-dvh w-dvw">
-			<Navbar user={user} />
-			<main className="flex-1 overflow-auto">{children}</main>
-		</div>
+		<TitleProvider>
+			<div className="flex-col h-dvh w-dvw">
+				<Navbar user={user} />
+				<main className="flex-1 overflow-auto">{children}</main>
+			</div>
+		</TitleProvider>
 	)
 }
