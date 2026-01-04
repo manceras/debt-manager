@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshTokensCore } from "./lib/api/auth-core";
+import { cookies } from "next/headers";
 
 const publicRoutes = ["/login", "/signup"];
 const protectedRoutes = ["/app"];
@@ -10,6 +11,10 @@ export async function proxy(request: NextRequest) {
 	const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 	const isProtectedRoute = protectedRoutes.some((route) => pathname.startsWith(route));
 
+	const cookiesStore = await cookies();
+
+	console.log("Cookies:", cookiesStore.getAll());
+
 	const accessToken = request.cookies.get("access_token")?.value;
 	const refreshToken = request.cookies.get("refresh_token")?.value;
 
@@ -18,12 +23,15 @@ export async function proxy(request: NextRequest) {
 	}
 
 	if (isProtectedRoute) {
+		console.log("visiting protected route:", pathname);
 		if (!refreshToken && !accessToken) {
+			console.log("No tokens found, redirecting to login.");
 			return NextResponse.redirect(new URL("/login", request.url));
 		}
 
 		if (!accessToken && refreshToken) {
 			const tokens = await refreshTokensCore(refreshToken);
+			console.log("Refreshed tokens:", tokens);
 			if (!tokens) {
 				return NextResponse.redirect(new URL("/login", request.url));
 			}
@@ -40,7 +48,7 @@ export async function proxy(request: NextRequest) {
 				response.cookies.set("refresh_token", tokens.refreshToken, {
 					httpOnly: true,
 					secure: process.env.NODE_ENV === "production",
-					path: "/auth/refresh",
+					path: "/",
 					maxAge: 45 * 24 * 60 * 60,
 				});
 			}

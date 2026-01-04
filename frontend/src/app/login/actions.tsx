@@ -53,7 +53,7 @@ export async function loginAction(_: LoginState, formData: FormData): Promise<Lo
 				cookieStore.set(name, value, {
 					httpOnly: true,
 					secure: process.env.NODE_ENV === 'production',
-					path: name === "access_token" ? "/" : "/auth/refresh",
+					path: name === "access_token" ? "/" : "/",
 					maxAge: name === "access_token" ? 15 * 60 : 45 * 24 * 60 * 60,
 				});
 			}
